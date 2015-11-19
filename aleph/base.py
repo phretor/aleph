@@ -127,12 +127,12 @@ class SampleBase(object):
     data = {}
     tags = []
 
-    def __init__(self, path, mimetype=None):
+    def __init__(self, path, tags=[], mimetype=None):
 
         self.path = path
         self.data = {}
         self.sources = []
-        self.tags = []
+        self.tags = tags
         self.hashes = self.get_hashes()
         self.timestamp = to_iso8601()
         self.mimetype = mimetype
