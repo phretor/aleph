@@ -1,7 +1,8 @@
 import os
-import logging
+
 from aleph.base import CollectorBase
 from aleph.settings import SAMPLE_TEMP_DIR
+
 
 class FileCollector(CollectorBase):
     """ Class FileCollector watch for a file appear in a specified path(settings.py/SAMPLE_SOURCES/local/path) """
