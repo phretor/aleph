@@ -6,10 +6,6 @@ from elasticsearch import Elasticsearch, NotFoundError
 from aleph.settings import ELASTICSEARCH_URI, ELASTICSEARCH_INDEX, ELASTICSEARCH_DOCTYPE, ELASTICSEARCH_TRACE, LOGGING
 from aleph.utils import dict_merge
 
-def escape(s):
-    for c in ILLEGAL_CHARS:
-        s = s.replace(c, '\\' + c)
-
 class DataStore(object):
     es = None
     tracer = None
