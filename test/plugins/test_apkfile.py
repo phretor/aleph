@@ -3,7 +3,7 @@ from mock import Mock
 from aleph.plugins.apkfile_plugin import _ as setup
 from aleph.plugins.apkfile_plugin import APKFilePlugin
 
-class PEInfoPluginTestCase(unittest.TestCase):
+class APKFilePEInfoPluginTestCase(unittest.TestCase):
 
     def test_it_is_initializable(self):
         queue = Mock()
