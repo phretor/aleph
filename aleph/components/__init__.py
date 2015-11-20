@@ -5,8 +5,6 @@ from aleph.base import plugin_registry
 from aleph.plugins import *
 
 from aleph.constants import SAMPLE_STATUS_PROCESSING, SAMPLE_STATUS_PROCESSED
-from aleph.utils import get_path
-
 
 class SampleManager(Process):
     ''' Manager Samples (load/get/sort/process/run/stop)'''
