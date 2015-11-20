@@ -1,9 +1,12 @@
-import logging, os
-import pluginbase
+import logging
 from multiprocessing import Process
-from aleph.base import SampleBase
+
+from aleph.base import plugin_registry
+from aleph.plugins import *
+
 from aleph.constants import SAMPLE_STATUS_PROCESSING, SAMPLE_STATUS_PROCESSED
 from aleph.utils import get_path
+
 
 class SampleManager(Process):
     ''' Manager Samples (load/get/sort/process/run/stop)'''
@@ -21,49 +24,49 @@ class SampleManager(Process):
         self.sample_queue = sample_queue
 
         self.plugins = []
-        self.plugin_source = None
         self.load_plugins()
 
         self.logger.info('SampleManager started')
 
     def load_plugins(self):
-        ''' Load plugins on path=aleph/plugins/'''
-        self.logger.debug('Loading plugins from folder')
+        self.logger.info('Loading all plugins')
 
-        plugin_base = pluginbase.PluginBase(package='aleph.plugins', searchpath=[get_path('plugins')])
-        self.plugin_source = plugin_base.make_plugin_source(
-            searchpath=[get_path('plugins')])
+        # tell all the plugins that they should setup and return an instance of themselves
+        plugins = plugin_registry.send(self.sample_queue)
 
-        for plugin_name in self.plugin_source.list_plugins():
-            plugin = self.plugin_source.load_plugin(plugin_name)
-            self.plugins.append(plugin.setup(self.sample_queue))
-            self.logger.debug('Plugin "%s" loaded' % plugin_name)
+        for _, plugin in plugins:
+            self.logger.info('Plugin %s started', plugin.name)
+            self.plugins.append(plugin)
 
         runs = 0
         max_runs = 30 # Max recursion runs before considering circular reference
 
         while (runs <= max_runs):
             rc = self.sort_plugins()
-            if rc == 0: break
+            if rc == 0:
+                break
             runs += 1
 
-        if runs == max_runs: self.logger.error('Possible circular reference in plugin chain')
+        if runs == max_runs:
+            self.logger.error('Possible circular reference in plugin chain')
+
+        self.logger.debug('Plugin chain is now: %s', ', '.join(map(str, self.plugins)))
 
     def get_plugin_index(self, name):
-        for plugin in self.plugins:
-            if plugin.name == name: return self.plugins.index(plugin)
-
+        for index, plugin in enumerate(self.plugins):
+            if plugin.name == name:
+                return index
         raise KeyError('Plugin %s not found in plugin list' % name)
 
     def sort_plugins(self):
-
-        changed = 0 
+        changed = 0
         for plugin in self.plugins:
-            max_idx = 0 
+            max_idx = 0
             if len(plugin.depends) != 0:
                 for dep in plugin.depends:
                     idx = self.get_plugin_index(dep)
-                    if idx > max_idx: max_idx = idx 
+                    if idx > max_idx:
+                        max_idx = idx
             if max_idx != 0 and max_idx+1 > self.plugins.index(plugin):
                 self.logger.debug( "Inserting plugin %s at position %d" % (plugin.name, max_idx+1))
                 self.plugins.remove(plugin)
@@ -71,9 +74,8 @@ class SampleManager(Process):
                 changed += 1
 
         return changed
-        
-    def process_sample(self):
 
+    def process_sample(self):
         try:
             self.logger.info('Waiting for sample')
             sample = self.sample_queue.get()
@@ -89,7 +91,7 @@ class SampleManager(Process):
         except (KeyboardInterrupt, SystemExit):
             pass
         except Exception, e:
-            raise 
+            raise
 
     def apply_plugins(self, sample):
         for plugin in self.plugins:
@@ -112,7 +114,8 @@ class SampleManager(Process):
 
     def stop(self):
         self.runnable = False
-        if self.is_alive(): self.terminate()
+        if self.is_alive():
+            self.terminate()
 
     def __del__(self):
         self.stop()
