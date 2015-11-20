@@ -1,10 +1,9 @@
 import unittest
 from mock import Mock
-from aleph.plugins.peinfo import setup
-from aleph.plugins.peinfo import PEInfoPlugin
+from aleph.plugins.peinfo_plugin import _ as setup
+from aleph.plugins.peinfo_plugin import PEInfoPlugin
 
 class PEInfoPluginTestCase(unittest.TestCase):
-
     def test_it_is_initializable(self):
         queue = Mock()
         pe = PEInfoPlugin(queue)
@@ -25,3 +24,6 @@ class PEInfoPluginTestCase(unittest.TestCase):
         pe = setup(queue)
         self.assertIsNotNone(pe)
         self.assertIsInstance(pe, PEInfoPlugin)
+
+if __name__ == '__main__':
+    unittest.main()
