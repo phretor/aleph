@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 
-import os, sys, logging, shutil
-from multiprocessing import Process, Queue
+import logging
+import os
+import shutil
 from copy import copy
+from multiprocessing import Queue
+
+import elasticsearch.exceptions
 
 from aleph import settings, collectors
 from aleph.components import SampleManager
 from aleph.datastore import es
-
 from aleph.settings import SAMPLE_STORAGE_DIR, SAMPLE_TEMP_DIR
+
 
 class AlephServer(object):
     ''' Create object AlephServer and your settings for colletors and other instances.'''
@@ -89,7 +93,6 @@ class AlephServer(object):
         self.start_collectors()
 
     def init_sample_managers(self):
-
         for i in range(settings.SAMPLE_MANAGERS):
             self.sample_managers.append(self.sample_manager_instance())
 
@@ -133,23 +136,26 @@ class AlephServer(object):
         self.monitor()
 
     def monitor(self):
-        
         self.running = True
         try:
             while self.running:
                 # SampleManager
                 for manager in self.sample_managers:
                     if manager and manager.is_alive():
+                        self.logger.debug('Manager is working, waiting to complete job')
                         manager.join(1.0)
                     else:
+                        self.logger.debug('Manager not alive, removing and appending another one')
                         self.sample_managers.remove(manager)
                         self.sample_managers.append(self.sample_manager_instance())
 
                 # Collectors
                 for source, instance in self.collectors:
                     if instance is not None and instance.is_alive():
+                        self.logger.debug('Collector instance is working, waiting to complete job')
                         instance.join(1.0)
                     else:
+                        self.logger.debug('Collector instance not alive, removing and appending another one')
                         instance = self.collector_instance(source)
 
         except (KeyboardInterrupt, SystemExit):
