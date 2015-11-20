@@ -1,20 +1,29 @@
+import binascii
+import hashlib
+import logging
+import magic
+import os
+import ssdeep
+import uuid
 from multiprocessing import Process
-import uuid, magic, os, logging, binascii, hashlib, time, datetime, ssdeep
+from shutil import move
+from time import sleep
+
+from aleph.constants import SAMPLE_STATUS_NEW
 from aleph.datastore import es
 from aleph.settings import SAMPLE_STORAGE_DIR, PLUGIN_SETTINGS, SAMPLE_MIN_FILESIZE, SAMPLE_MAX_FILESIZE
-from aleph.constants import SAMPLE_STATUS_NEW
 from aleph.utils import to_iso8601, humansize
-from shutil import move
 
-from time import sleep
+from blinker import signal
+plugin_registry = signal('on-plugin-setup')
 
 class PluginBase(object):
     """Generic Class to Plugin.
     When creating a new plugin you must inherit from this"""
     logger = None
 
-    mimetypes = [] # empty = all mimetypes
-    mimetypes_except = [] # used when mimetypes is set to all (empty)
+    mimetypes = []  # empty = all mimetypes
+    mimetypes_except = []  # used when mimetypes is set to all (empty)
 
     name = None
     description = None
@@ -28,10 +37,14 @@ class PluginBase(object):
     queue = None
 
     sample = None
-    
 
-    def __init__(self, queue):
-        if not self.name: self.name = self.__class__.__name__
+    def __str__(self):
+        return self.name
+
+    def __init__(self, queue, *args, **kwargs):
+        if not self.name:
+            self.name = self.__class__.__name__
+
         self.logger = logging.getLogger('Plugin:%s' % self.name)
 
         self.queue = queue
@@ -42,7 +55,7 @@ class PluginBase(object):
 
         if 'enabled' not in self.options:
             self.options['enabled'] = False
-        
+
         if self.options['enabled']:
             self.validate_options()
             self.setup()
@@ -106,6 +119,7 @@ class PluginBase(object):
 
         return True
 
+
 class SampleBase(object):
     """Generic Class to Sample.
     All the samples must inherit from this"""
@@ -123,7 +137,7 @@ class SampleBase(object):
         'parent': [],
         'child': [],
     }
-    
+
     hashes = {}
 
     size = 0
@@ -131,9 +145,10 @@ class SampleBase(object):
     data = {}
     tags = []
 
-    def __init__(self, path, mimetype=None):
+    def __init__(self, path, tags=[], mimetype=None):
         """Basic info that a sample must have"""
         self.path = path
+        self.tags = tags
         self.data = {}
         self.sources = []
         self.tags = []
@@ -147,17 +162,18 @@ class SampleBase(object):
             'child': [],
         }
 
-
         # Size boundary check
-        sample_size = os.stat(path).st_size 
+        sample_size = os.stat(path).st_size
 
         if sample_size > SAMPLE_MAX_FILESIZE:
             os.unlink(path)
-            raise ValueError('Sample %s (%s) is bigger than maximum file size allowed: %s' % (path, humansize(sample_size), humansize(SAMPLE_MAX_FILESIZE)))
+            raise ValueError('Sample %s (%s) is bigger than maximum file size allowed: %s' % (
+            path, humansize(sample_size), humansize(SAMPLE_MAX_FILESIZE)))
 
         if sample_size < SAMPLE_MIN_FILESIZE and self.mimetype != "text/url":
             os.unlink(path)
-            raise ValueError('Sample %s (%s) is smaller than minimum file size allowed: %s' % (path, humansize(sample_size), humansize(SAMPLE_MIN_FILESIZE)))
+            raise ValueError('Sample %s (%s) is smaller than minimum file size allowed: %s' % (
+            path, humansize(sample_size), humansize(SAMPLE_MIN_FILESIZE)))
 
         if not self.check_exists():
             self.store_sample()
@@ -194,7 +210,7 @@ class SampleBase(object):
         """Add a cross reference to another sample. This means that they are related in somehow"""
         xrefs = self.xrefs
 
-        if relation not in [ 'parent', 'child' ]:
+        if relation not in ['parent', 'child']:
             raise KeyError('XRef Relation must be either \'parent\' or \'child\'')
 
         if sample_uuid not in xrefs[relation] and self.uuid != sample_uuid:
@@ -204,7 +220,7 @@ class SampleBase(object):
     def add_source(self, provider, filename, reference=None):
         """Add where you get this sample as a source"""
         sources = self.sources
-        sources.append( {'timestamp': to_iso8601(), 'provider': provider, 'filename': filename, 'reference': reference} )
+        sources.append({'timestamp': to_iso8601(), 'provider': provider, 'filename': filename, 'reference': reference})
         self.sources = sources
 
     def add_tag(self, tag_name):
@@ -231,7 +247,7 @@ class SampleBase(object):
         if not self.mimetype:
             self.mimetype = magic.from_file(self.path, mime=True)
             self.mimetype_str = magic.from_file(self.path)
-        
+
         # Get file size
         self.size = os.stat(self.path).st_size
 
@@ -251,12 +267,12 @@ class SampleBase(object):
         with open(self.path) as handle:
             filedata = handle.read()
             hashes = {
-            'md5': hashlib.md5(filedata).hexdigest(),
-            'sha1': hashlib.sha1(filedata).hexdigest(),
-            'sha256': hashlib.sha256(filedata).hexdigest(),
-            'sha512': hashlib.sha512(filedata).hexdigest(),
-            'crc32': "%08X" % (binascii.crc32(filedata) & 0xFFFFFFFF),
-            'ssdeep': ssdeep.hash(filedata),
+                'md5': hashlib.md5(filedata).hexdigest(),
+                'sha1': hashlib.sha1(filedata).hexdigest(),
+                'sha256': hashlib.sha256(filedata).hexdigest(),
+                'sha512': hashlib.sha512(filedata).hexdigest(),
+                'crc32': "%08X" % (binascii.crc32(filedata) & 0xFFFFFFFF),
+                'ssdeep': ssdeep.hash(filedata),
             }
         return hashes
 
@@ -269,8 +285,8 @@ class SampleBase(object):
             'mime': self.mimetype_str,
             'hashes': self.hashes,
             'data': self.data,
-    	    'tags': self.tags,
-    	    'timestamp' : self.timestamp,	
+            'tags': self.tags,
+            'timestamp': self.timestamp,
             'sources': self.sources,
             'size': self.size,
             'xrefs': self.xrefs
@@ -279,6 +295,7 @@ class SampleBase(object):
     def __str__(self):
 
         return str(self.toObject)
+
 
 class CollectorBase(Process):
     """Generic Class to Collector.
@@ -361,7 +378,7 @@ class CollectorBase(Process):
         self.logger.debug('Creating sample from path %s (source: %s)' % (filepath, sourcedata[0]))
 
         sample = SampleBase(filepath, mimetype)
-        sample.add_source(self.__class__.__name__, sourcedata[0], sourcedata[1] )
+        sample.add_source(self.__class__.__name__, sourcedata[0], sourcedata[1])
 
         if sample.process:
             sample.store_data()
