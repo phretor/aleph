@@ -1,17 +1,15 @@
-import re
 import logging
-
 from elasticsearch import Elasticsearch, NotFoundError
-
 from aleph.settings import ELASTICSEARCH_URI, ELASTICSEARCH_INDEX, ELASTICSEARCH_DOCTYPE, ELASTICSEARCH_TRACE, LOGGING
 from aleph.utils import dict_merge
+
+from aleph.datastore.elasticsearch_escape import escape_doc
 
 class DataStore(object):
     es = None
     tracer = None
 
     def __init__(self):
-
         self.es = Elasticsearch(ELASTICSEARCH_URI)
         self.tracer = logging.getLogger('elasticsearch.trace')
 
@@ -21,14 +19,19 @@ class DataStore(object):
         else:
             self.tracer.addHandler(logging.NullHandler())
 
+    def destroy(self):
+        self.es.indices.delete(index=ELASTICSEARCH_INDEX)
+
     def update(self, doc_id, partial_body):
+        partial_body = escape_doc(partial_body)
+
         self.es.update(index=ELASTICSEARCH_INDEX, id=doc_id, doc_type=ELASTICSEARCH_DOCTYPE, body={'doc': partial_body})
 
     def setup(self):
         self.es.indices.create(index=ELASTICSEARCH_INDEX, ignore=400)  # Ignore already exists
 
     def count(self, q=None):
-
+        # TODO insert escaping here
         if q:
             result = self.es.count(index=ELASTICSEARCH_INDEX, doc_type=ELASTICSEARCH_DOCTYPE, q=q)
         else:
@@ -57,7 +60,7 @@ class DataStore(object):
         return result
 
     def lucene_search(self, query, start=0, size=15):
-
+        # TODO insert escaping here
         try:
             body = {
                 "sort": {
@@ -76,7 +79,7 @@ class DataStore(object):
         return result
 
     def search(self, query):
-
+        # TODO insert escaping here
         result = []
 
         try:
@@ -90,13 +93,14 @@ class DataStore(object):
         return result
 
     def save(self, doc_data, doc_id):
+        doc_data = escape_doc(doc_data)
         return self.merge_document(ELASTICSEARCH_INDEX, ELASTICSEARCH_DOCTYPE, doc_data, doc_id)
 
     def get(self, doc_id):
         return self.es.get(index=ELASTICSEARCH_INDEX, doc_type=ELASTICSEARCH_DOCTYPE, id=doc_id)['_source']
 
     def merge_document(self, index, doc_type, doc_data, doc_id):
-        doc_data = self.sanitize_doc(doc_data)
+        doc_data = escape_doc(doc_data)
 
         self.tracer.debug('Sanitized doc: %s', doc_data)
 
@@ -126,6 +130,5 @@ class DataStore(object):
         merged_document = dict_merge(original_document, doc_data)
 
         return self.es.index(index=index, doc_type=doc_type, body=merged_document, id=doc_id)
-
 
 es = DataStore()
