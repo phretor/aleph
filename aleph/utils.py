@@ -1,12 +1,11 @@
 import importlib
-import os, sys, logging
+import logging
+import os
 import pkgutil
+import sys
 from copy import deepcopy
-from functools import partial
 
-CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
-# Get path as a function - for PluginBase
-get_path = partial(os.path.join, CURRENT_DIR)
+logger = logging.getLogger('aleph.utils')
 
 def import_submodules(package_name):
     """ Import all submodules of a module, recursively
@@ -16,10 +15,14 @@ def import_submodules(package_name):
     :rtype: dict[types.ModuleType]
     """
     package = sys.modules[package_name]
-    return {
-        name: importlib.import_module(package_name + '.' + name)
-        for loader, name, is_pkg in pkgutil.walk_packages(package.__path__)
-    }
+
+    try:
+        return {
+            name: importlib.import_module(package_name + '.' + name)
+            for loader, name, is_pkg in pkgutil.walk_packages(package.__path__)
+        }
+    except ImportError as ex:
+        logger.warn('Could not load module %s because of a missing dependency: %s', package_name, ex)
 
 def error(msg):
     # print help information and exit:
