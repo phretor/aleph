@@ -3,7 +3,7 @@
 from operator import itemgetter
 from time import sleep
 
-import vt
+import virustotal
 from aleph.base import PluginBase, plugin_registry
 from aleph.constants import MIMETYPES_ARCHIVE
 from aleph.utils import in_string
@@ -21,8 +21,7 @@ class VirusTotalPlugin(PluginBase):
     vt = None
 
     def setup(self):
-        print dir(vt)
-        self.vt = vt.VirusTotal(self.options['api_key'], self.options['api_limit'])
+        self.vt = virustotal.VirusTotal(self.options['api_key'], self.options['api_limit'])
 
     def process(self):
 

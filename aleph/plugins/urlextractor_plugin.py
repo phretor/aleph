@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 
-from aleph.base import PluginBase
+from aleph.base import PluginBase, plugin_registry
 from aleph.settings import SAMPLE_TEMP_DIR
 from aleph.constants import MIMETYPES_ARCHIVE
 import tempfile, hashlib
@@ -32,13 +32,6 @@ class UrlExtractorPlugin(PluginBase):
 
                 self.create_sample(temp_file.name, filename, mimetype="text/url")
 
-        return {
-            'headers': mail.items(),
-            'from': mail.get('From'),
-            'to': mail.get('To'),
-            'subject': mail.get('Subject'),
-            }
-
-def setup(queue):
-    plugin = UrlExtractorPlugin(queue)
-    return plugin
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return UrlExtractorPlugin(queue, *args, **kwargs)

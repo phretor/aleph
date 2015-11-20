@@ -1,5 +1,6 @@
 # -*- coding: utf8 -*-
 
+from aleph.base import plugin_registry
 from aleph.base import PluginBase
 from aleph.settings import SAMPLE_TEMP_DIR
 import email, tempfile
@@ -42,6 +43,6 @@ class EmailPlugin(PluginBase):
             'subject': mail.get('Subject'),
             }
 
-def setup(queue):
-    plugin = EmailPlugin(queue)
-    return plugin
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return EmailPlugin(queue, *args, **kwargs)

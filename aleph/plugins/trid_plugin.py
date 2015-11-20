@@ -1,13 +1,16 @@
-from aleph.base import PluginBase
-import subprocess, os
+import os
 import re
+import subprocess
+
+from aleph.base import PluginBase, plugin_registry
+
 
 class TrIDPlugin(PluginBase):
     """Use TrID to identify the mimetype of the sample"""
     name = 'trid'
-    default_options = { 'enabled': False }
-    required_options = [ 'trid_path', 'triddefs_path' ]
-    
+    default_options = {'enabled': False}
+    required_options = ['trid_path', 'triddefs_path']
+
     def validate_options(self):
         super(TrIDPlugin, self).validate_options()
 
@@ -19,7 +22,8 @@ class TrIDPlugin(PluginBase):
 
     def process(self):
 
-        proc = subprocess.Popen([self.options['trid_path'], self.sample.path, '-d:%s' % self.options['triddefs_path']], stdout=subprocess.PIPE)
+        proc = subprocess.Popen([self.options['trid_path'], self.sample.path, '-d:%s' % self.options['triddefs_path']],
+                                stdout=subprocess.PIPE)
         output = proc.communicate()[0]
 
         if proc.returncode != 0:
@@ -40,8 +44,9 @@ class TrIDPlugin(PluginBase):
         if len(detections) == 0:
             detections.append({'description': 'Unknown'})
 
-        return { 'detections': detections }
+        return {'detections': detections}
 
-def setup(queue):
-    plugin = TrIDPlugin(queue)
-    return plugin
+
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return TrIDPlugin(queue, *args, **kwargs)

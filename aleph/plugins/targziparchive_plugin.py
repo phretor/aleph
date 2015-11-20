@@ -1,16 +1,19 @@
+import ntpath
+import os
+import shutil
 import tarfile
 from tempfile import mkdtemp
-from aleph.base import PluginBase
-import shutil, os, ntpath
 
+from aleph.base import PluginBase, plugin_registry
 from aleph.settings import SAMPLE_TEMP_DIR
+
 
 class TarGzipArchivePlugin(PluginBase):
     """Extract files from TAR GZIP"""
     name = 'archive_tar-gzip'
-    default_options = { 'enabled': True }
+    default_options = {'enabled': True}
     mimetypes = ['application/x-tar', 'application/gzip', 'application/x-gzip']
-    
+
     def extract_file(self, path, dest):
         """Extract TAR/GZIP file to a temp folder"""
         nl = []
@@ -36,7 +39,7 @@ class TarGzipArchivePlugin(PluginBase):
                 self.create_sample(fpath, tail)
         shutil.rmtree(temp_dir)
 
-        ret = {} 
+        ret = {}
 
         if len(targzip_contents) == 0:
             self.logger.error('Unable to uncompress %s. Corrupted file?' % self.sample.path)
@@ -50,6 +53,7 @@ class TarGzipArchivePlugin(PluginBase):
 
         return ret
 
-def setup(queue):
-    plugin = TarGzipArchivePlugin(queue)
-    return plugin
+
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return TarGzipArchivePlugin(queue, *args, **kwargs)

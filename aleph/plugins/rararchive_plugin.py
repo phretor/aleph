@@ -1,16 +1,20 @@
-from rarfile import RarFile, RarExecError, BadRarFile
+import ntpath
+import os
+import shutil
 from tempfile import mkdtemp
-from aleph.base import PluginBase
-import shutil, os, ntpath
 
+from rarfile import RarFile, RarExecError, BadRarFile
+
+from aleph.base import PluginBase, plugin_registry
 from aleph.settings import SAMPLE_TEMP_DIR, SAMPLE_MIN_FILESIZE
+
 
 class RarArchivePlugin(PluginBase):
     """Extract files from RAR"""
     name = 'rararchive'
-    default_options = { 'passwords': [ 'infected', 'evil', 'virus', 'malicious' ], 'enabled': True }
+    default_options = {'passwords': ['infected', 'evil', 'virus', 'malicious'], 'enabled': True}
     mimetypes = ['application/x-rar']
-    
+
     def extract_file(self, path, dest, password=None):
         """Extract RAR archive filetypes to a temp folder"""
         nl = []
@@ -27,7 +31,7 @@ class RarArchivePlugin(PluginBase):
 
         temp_dir = mkdtemp(dir=SAMPLE_TEMP_DIR)
 
-        self.options['passwords'].insert(0, None) # Append blank password
+        self.options['passwords'].insert(0, None)  # Append blank password
         current_password = None
         rar_contents = []
 
@@ -43,9 +47,9 @@ class RarArchivePlugin(PluginBase):
                         head, tail = ntpath.split(fpath)
                         self.create_sample(fpath, tail)
                 shutil.rmtree(temp_dir)
-                break # Stop bruting
+                break  # Stop bruting
             except (RarExecError, BadRarFile):
-                continue # Invalid password
+                continue  # Invalid password
 
         ret = {}
 
@@ -65,6 +69,7 @@ class RarArchivePlugin(PluginBase):
         ret['contents'] = rar_contents
         return ret
 
-def setup(queue):
-    plugin = RarArchivePlugin(queue)
-    return plugin
+
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return RarArchivePlugin(queue, *args, **kwargs)

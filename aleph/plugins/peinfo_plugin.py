@@ -1,4 +1,4 @@
-from aleph.base import PluginBase
+from aleph.base import PluginBase, plugin_registry
 import pefile, sys, traceback, bitstring, string, hashlib, bz2
 import datetime, time
 
@@ -175,6 +175,6 @@ class PEInfoPlugin(PluginBase):
         m.update(pehash_bin.tobytes())
         return m.hexdigest()
 
-def setup(queue):
-    plugin = PEInfoPlugin(queue)
-    return plugin
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return PEInfoPlugin(queue, *args, **kwargs)

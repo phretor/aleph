@@ -1,9 +1,12 @@
-from zipfile import ZipFile
+import ntpath
+import os
+import shutil
 from tempfile import mkdtemp
-from aleph.base import PluginBase
-import shutil, os, ntpath
+from zipfile import ZipFile
 
+from aleph.base import PluginBase, plugin_registry
 from aleph.settings import SAMPLE_TEMP_DIR, SAMPLE_MIN_FILESIZE
+
 
 class ZipArchivePlugin(PluginBase):
     """Extract files from ZipFile"""
@@ -79,6 +82,6 @@ class ZipArchivePlugin(PluginBase):
 
         return ret
 
-def setup(queue):
-    plugin = ZipArchivePlugin(queue)
-    return plugin
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return ZipArchivePlugin(queue, *args, **kwargs)

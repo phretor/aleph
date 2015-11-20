@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 
-from aleph.base import PluginBase
+from aleph.base import PluginBase, plugin_registry
 from aleph.settings import SAMPLE_TEMP_DIR
 import ConfigParser
 import urlparse, httplib
@@ -87,6 +87,6 @@ class UrlParserPlugin(PluginBase):
 
         return ret
 
-def setup(queue):
-    plugin = UrlParserPlugin(queue)
-    return plugin
+@plugin_registry.connect
+def _(queue, *args, **kwargs):
+    return UrlParserPlugin(queue, *args, **kwargs)
