@@ -1,10 +1,25 @@
+import importlib
 import os, sys, logging
+import pkgutil
 from copy import deepcopy
 from functools import partial
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 # Get path as a function - for PluginBase
 get_path = partial(os.path.join, CURRENT_DIR)
+
+def import_submodules(package_name):
+    """ Import all submodules of a module, recursively
+
+    :param package_name: Package name
+    :type package_name: str
+    :rtype: dict[types.ModuleType]
+    """
+    package = sys.modules[package_name]
+    return {
+        name: importlib.import_module(package_name + '.' + name)
+        for loader, name, is_pkg in pkgutil.walk_packages(package.__path__)
+    }
 
 def error(msg):
     # print help information and exit:
