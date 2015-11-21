@@ -20,20 +20,14 @@ ILLEGAL_CHARS = (
     chr(0x3e),  # > greater than
     chr(0x7c),  # | pipe
     chr(0x20),  # space
-    chr(0x2e)   # . dot
+    chr(0x2e)  # . dot
 )
-IC = re.compile('[{}]'.format(''.join(ILLEGAL_CHARS)))
+IC = re.compile('[{}]'.format(re.escape(''.join(ILLEGAL_CHARS))))
 SQUASH = '_'
 
 
 def escape(s):
-    res = ''
-    for c in s:
-        if IC.match(c):
-            res += SQUASH
-        else:
-            res += c
-    return res
+    return IC.sub(SQUASH, s)
 
 
 def escape_doc(doc):
@@ -45,10 +39,7 @@ def escape_doc(doc):
     """
     ret = {}
     for k, v in doc.iteritems():
-        if IC.match(k):
-            K = escape(k)
-        else:
-            K = k
+        K = escape(k)
         if isinstance(v, dict):
             v = escape_doc(v)
 
