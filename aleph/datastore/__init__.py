@@ -19,6 +19,8 @@ class DataStore(object):
         else:
             self.tracer.addHandler(logging.NullHandler())
 
+        self.logger = self.tracer
+
     def destroy(self):
         self.es.indices.delete(index=ELASTICSEARCH_INDEX)
 
